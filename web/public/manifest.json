@@ -1,0 +1,17 @@
+{
+  "name": "VN Retail OS",
+  "short_name": "VN Retail",
+  "description": "Hệ thống quản lý bán hàng toàn diện",
+  "start_url": "/login",
+  "display": "standalone",
+  "background_color": "#030712",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/icons/vnretailos_pwa_icon_1776167226067.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

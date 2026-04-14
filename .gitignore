@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+dist/
+build/
+
+# Environment files — NEVER commit real .env
+.env
+.env.local
+.env.*.local
+
+# Prisma generated
+api/src/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+._*
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads (user-generated content)
+api/uploads/
+
+# Turbo cache
+.turbo/
+
+# PWA generated
+web/public/sw.js
+web/public/workbox-*.js
+
+# Test coverage
+coverage/

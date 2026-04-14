@@ -1,0 +1,106 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: retail_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: retail_management
+      POSTGRES_USER: retail_admin
+      POSTGRES_PASSWORD: Retail@2024Secure!
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retail_admin -d retail_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: retail_redis
+    restart: unless-stopped
+    command: redis-server --requirepass Redis@2024Secure!
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "Redis@2024Secure!", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  maildev:
+    image: maildev/maildev
+    container_name: retail_maildev
+    restart: unless-stopped
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: retail_api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      DATABASE_URL: postgresql://retail_admin:Retail@2024Secure!@postgres:5432/retail_management
+      REDIS_URL: redis://:Redis@2024Secure!@redis:6379
+      JWT_SECRET: retail-jwt-secret-super-secure-2024-change-in-production
+      JWT_ACCESS_EXPIRES: 15m
+      JWT_REFRESH_EXPIRES: 7d
+      PORT: 3001
+      NODE_ENV: production
+      FRONTEND_URL: http://localhost:3000
+      MAIL_HOST: maildev
+      MAIL_PORT: 1025
+      MAIL_USER: ""
+      MAIL_PASS: ""
+      MAIL_FROM: noreply@retail.local
+      VNPAY_TMN_CODE: ${VNPAY_TMN_CODE:-your_vnpay_tmn_code}
+      VNPAY_HASH_SECRET: ${VNPAY_HASH_SECRET:-your_vnpay_hash_secret}
+      VNPAY_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      VNPAY_RETURN_URL: http://localhost:3000/payment/vnpay-return
+      MOMO_PARTNER_CODE: ${MOMO_PARTNER_CODE:-MOMO}
+      MOMO_ACCESS_KEY: ${MOMO_ACCESS_KEY:-your_momo_access_key}
+      MOMO_SECRET_KEY: ${MOMO_SECRET_KEY:-your_momo_secret_key}
+      MOMO_API_URL: https://test-payment.momo.vn
+      MOMO_RETURN_URL: http://localhost:3000/payment/momo-return
+      UPLOAD_DIR: ./uploads
+      MAX_FILE_SIZE: 5242880
+    volumes:
+      - api_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: retail_web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+      NODE_ENV: production
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:
+  api_uploads:
+
+networks:
+  default:
+    name: retail_network

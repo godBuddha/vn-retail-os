@@ -1,0 +1,187 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+
+:root {
+  --sidebar-width: 260px;
+  --radius: 0.75rem;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-main, #030712);
+  color: var(--text-main, #f1f5f9);
+  -webkit-font-smoothing: antialiased;
+}
+
+html {
+  font-size: 14px; /* default */
+}
+
+/* Base Definitions for Dark (Default) */
+:root {
+  --color-primary-base: #7c3aed;
+  --bg-card: rgba(15, 23, 42, 0.8);
+  --border-card: rgba(51, 65, 85, 0.5);
+  --bg-input: #1e293b;
+  --border-input: #334155;
+  --text-input: #f1f5f9;
+}
+
+/* Light Theme Overrides */
+.light-theme {
+  --bg-main: #f8fafc;
+  --text-main: #0f172a;
+  
+  /* Tailwind generic color invert for layout structure */
+  --color-slate-950: #f8fafc;
+  --color-slate-900: #ffffff;
+  --color-slate-800: #f1f5f9;
+  --color-slate-700: #e2e8f0;
+  --color-slate-600: #cbd5e1;
+  --color-slate-500: #94a3b8;
+  --color-slate-400: #475569;
+  --color-slate-300: #334155;
+  --color-white: #0f172a;
+  --color-black: #ffffff;
+
+  /* Card and Input inverts */
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --border-card: rgba(203, 213, 225, 0.8);
+  --bg-input: #f8fafc;
+  --border-input: #cbd5e1;
+  --text-input: #0f172a;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #030712; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Glass morphism */
+.glass {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* Gradient cards */
+.gradient-purple { background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); }
+.gradient-blue   { background: linear-gradient(135deg, #2563eb 0%, #0ea5e9 100%); }
+.gradient-green  { background: linear-gradient(135deg, #059669 0%, #10b981 100%); }
+.gradient-orange { background: linear-gradient(135deg, #ea580c 0%, #f59e0b 100%); }
+
+/* Animations */
+@keyframes fadeIn   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn  { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.animate-fadeIn     { animation: fadeIn 0.3s ease forwards; }
+.animate-slideIn    { animation: slideIn 0.3s ease forwards; }
+.animate-pulse-glow { animation: pulse-glow 2s infinite; }
+.animate-spin       { animation: spin 1s linear infinite; }
+
+/* Input */
+.input-dark {
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  color: var(--text-input);
+  border-radius: calc(var(--radius) - 2px);
+  padding: 8px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-size: 14px;
+}
+.input-dark:focus {
+  border-color: var(--color-primary-base);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15); /* Keep shadow static or dynamic via filter */
+}
+.input-dark::placeholder { color: #64748b; }
+
+/* Buttons */
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--color-primary-base); color: #fff; font-weight: 500;
+  padding: 8px 16px; border-radius: 10px;
+  border: none; cursor: pointer; font-size: 14px;
+  transition: background 0.2s, opacity 0.2s, transform 0.1s;
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(0.9); transform: translateY(-1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bg-input); color: var(--text-main); font-weight: 500;
+  padding: 8px 16px; border-radius: 10px;
+  border: 1px solid var(--border-input); cursor: pointer; font-size: 14px;
+  transition: background 0.2s;
+}
+.btn-secondary:hover { filter: brightness(1.2); }
+
+.btn-danger {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(239,68,68,0.1); color: #f87171; font-weight: 500;
+  padding: 8px 16px; border-radius: 10px;
+  border: 1px solid rgba(239,68,68,0.3); cursor: pointer; font-size: 14px;
+  transition: background 0.2s;
+}
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+.btn-success {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: #059669; color: #fff; font-weight: 500;
+  padding: 8px 16px; border-radius: 10px;
+  border: none; cursor: pointer; font-size: 14px;
+  transition: background 0.2s;
+}
+.btn-success:hover { background: #047857; }
+
+/* Card */
+.card-dark {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(8px);
+}
+
+/* Skeleton */
+.skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* Table */
+.table-row-hover:hover { background: rgba(255,255,255,0.02); }
+
+/* POS grid */
+.pos-products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+.badge-completed { background: rgba(34,197,94,0.15); color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+.badge-pending   { background: rgba(234,179,8,0.15);  color: #facc15; border: 1px solid rgba(234,179,8,0.3); }
+.badge-cancelled { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.badge-refunded  { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
+.badge-processing{ background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+
+@media (max-width: 768px) {
+  :root { --sidebar-width: 0px; }
+}

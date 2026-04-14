@@ -1,0 +1,1000 @@
+// ============================================================
+// Prisma Schema — Hệ Thống Quản Lý Bán Hàng
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum Role {
+  SUPER_ADMIN
+  BRANCH_ADMIN
+  MANAGER
+  CASHIER
+  WAREHOUSE
+  ACCOUNTANT
+  READONLY
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  VNPAY
+  MOMO
+  ZALOPAY
+  QR_CODE
+  QR_MANUAL
+  CREDIT
+}
+
+enum PaymentGatewayStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  FAILED
+  REFUNDED
+}
+
+enum StockMovementType {
+  PURCHASE_IN
+  SALE_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  RETURN_IN
+  DAMAGE_OUT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  CONFIRMED
+  PARTIAL_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum AttendanceType {
+  CHECK_IN
+  CHECK_OUT
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  BUY_X_GET_Y
+  FREE_SHIPPING
+}
+
+enum CustomerTier {
+  NEW
+  REGULAR
+  SILVER
+  GOLD
+  PLATINUM
+  VIP
+}
+
+// ============================================================
+// AUTH & USERS
+// ============================================================
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  phone          String?   @unique
+  password       String
+  firstName      String
+  lastName       String
+  avatar         String?
+  role           Role      @default(CASHIER)
+  isActive       Boolean   @default(true)
+  isEmailVerified Boolean  @default(false)
+  lastLoginAt    DateTime?
+  language       String    @default("vi")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  // Two-Factor Authentication
+  twoFactorSecret    String?
+  isTwoFactorEnabled Boolean   @default(false)
+
+  // Password reset
+  resetToken     String?
+  resetTokenExpires DateTime?
+
+  // Refresh tokens
+  refreshTokens  RefreshToken[]
+
+  // Branch assignments
+  userBranches   UserBranch[]
+
+  // Relations
+  employee       Employee?
+  ordersCreated  Order[]       @relation("OrderCreatedBy")
+  ordersUpdated  Order[]       @relation("OrderUpdatedBy")
+  stockMovements StockMovement[]
+  auditLogs      AuditLog[]
+
+  // Shift relations
+  shiftsOpened   Shift[]       @relation("ShiftOpened")
+  shiftsClosed   Shift[]       @relation("ShiftClosed")
+
+  // Notifications
+  notificationPrefs NotificationPreference?
+  notifications     Notification[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  isRevoked  Boolean  @default(false)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// BRANCHES
+// ============================================================
+
+model Branch {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  name        String
+  address     String?
+  city        String?
+  district    String?
+  ward        String?
+  phone       String?
+  email       String?
+  logo        String?
+  isActive    Boolean   @default(true)
+  isDefault   Boolean   @default(false)
+  openTime    String?   // "08:00"
+  closeTime   String?   // "22:00"
+  taxCode     String?
+  bankAccount String?
+  bankName    String?
+  settings    Json?     // branch-specific settings
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  userBranches   UserBranch[]
+  inventory      Inventory[]
+  orders         Order[]
+  shifts         Shift[]
+  stockTransfersFrom StockTransfer[] @relation("TransferFrom")
+  stockTransfersTo   StockTransfer[] @relation("TransferTo")
+  purchaseOrders PurchaseOrder[]
+  employees      Employee[]
+  expenses       Expense[]
+  bankAccounts   BankAccount[]
+
+  @@index([code])
+  @@index([isActive])
+  @@map("branches")
+}
+
+model UserBranch {
+  id         String   @id @default(uuid())
+  userId     String
+  branchId   String
+  isPrimary  Boolean  @default(false)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  assignedAt DateTime @default(now())
+
+  @@unique([userId, branchId])
+  @@map("user_branches")
+}
+
+// ============================================================
+// SETTINGS & NOTIFICATIONS (SYS)
+// ============================================================
+
+model SystemSettings {
+  id        String   @id @default("singleton")
+  smtpHost  String?
+  smtpPort  Int      @default(587)
+  smtpUser  String?
+  smtpPass  String?  // encrypted App Password
+  smtpFrom  String?
+  smtpSecure Boolean @default(false)
+  resendApiKey String?
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model NotificationPreference {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailNewOrder    Boolean  @default(true)
+  emailDailyReport Boolean  @default(true)
+  emailLowStock    Boolean  @default(true)
+  pushNewOrder     Boolean  @default(false)
+  pushLowStock     Boolean  @default(true)
+  pushDailyReport  Boolean  @default(true)
+  smsPromotions    Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+
+  @@map("notification_preferences")
+}
+
+enum NotificationType {
+  LOW_STOCK
+  NEW_ORDER
+  DAILY_REPORT
+  SYSTEM_ALERT
+  PAYMENT_RECEIVED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  link      String?          // URL to navigate when clicked
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ============================================================
+// MAIL CENTER
+// ============================================================
+
+enum EmailType {
+  ORDER_RECEIPT
+  DAILY_REPORT
+  LOW_STOCK_ALERT
+  CUSTOM
+  INBOUND
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+  OPENED
+  BOUNCED
+}
+
+model EmailLog {
+  id        String      @id @default(cuid())
+  resendId  String?
+  from      String
+  to        String[]
+  subject   String
+  bodyHtml  String      @db.Text
+  type      EmailType   @default(CUSTOM)
+  status    EmailStatus @default(PENDING)
+  isRead    Boolean     @default(false)
+  isStarred Boolean     @default(false)
+  isDeleted Boolean     @default(false)
+  isSpam    Boolean     @default(false)
+  relatedId String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([isDeleted, isSpam])
+  @@map("email_logs")
+}
+
+// ============================================================
+// PRODUCTS & CATEGORIES
+// ============================================================
+
+model Category {
+  id          String     @id @default(uuid())
+  code        String     @unique
+  name        String
+  nameEn      String?
+  slug        String     @unique
+  description String?
+  image       String?
+  parentId    String?
+  parent      Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryChildren")
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  products  Product[]
+
+  @@index([parentId])
+  @@index([slug])
+  @@map("categories")
+}
+
+model Unit {
+  id          String    @id @default(uuid())
+  name        String    // "Cái", "Hộp", "Thùng", "Kg"
+  nameEn      String?
+  symbol      String?   // "pcs", "box", "kg"
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  products    Product[]
+
+  @@map("units")
+}
+
+model Product {
+  id           String    @id @default(uuid())
+  code         String    @unique
+  barcode      String?
+  name         String
+  nameEn       String?
+  slug         String    @unique
+  description  String?
+  images       String[]  @default([])
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id])
+  unitId       String?
+  unit         Unit?     @relation(fields: [unitId], references: [id])
+  costPrice    Decimal   @default(0) @db.Decimal(15, 2) // giá nhập
+  salePrice    Decimal   @default(0) @db.Decimal(15, 2) // giá bán
+  promoPrice   Decimal?  @db.Decimal(15, 2)             // giá KM
+  taxRate      Decimal   @default(0) @db.Decimal(5, 2) // VAT %
+  minStock     Int       @default(0)                    // cảnh báo sắp hết
+  maxStock     Int?
+  weight       Decimal?  @db.Decimal(10, 3)
+  isActive     Boolean   @default(true)
+  isFeatured   Boolean   @default(false)
+  hasVariants  Boolean   @default(false)
+  tags         String[]  @default([])
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  variants       ProductVariant[]
+  inventory      Inventory[]
+  orderItems     OrderItem[]
+  purchaseItems  PurchaseOrderItem[]
+
+  @@index([code])
+  @@index([barcode])
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ProductVariant {
+  id          String    @id @default(uuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku         String    @unique
+  barcode     String?
+  name        String    // "Đỏ - Size M"
+  attributes  Json?     // {"color": "Đỏ", "size": "M"}
+  costPrice   Decimal?  @db.Decimal(15, 2)
+  salePrice   Decimal?  @db.Decimal(15, 2)
+  promoPrice  Decimal?  @db.Decimal(15, 2)
+  image       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  inventory  Inventory[]
+  orderItems OrderItem[]
+
+  @@index([productId])
+  @@index([sku])
+  @@map("product_variants")
+}
+
+// ============================================================
+// INVENTORY
+// ============================================================
+
+model Inventory {
+  id               String         @id @default(uuid())
+  branchId         String
+  branch           Branch         @relation(fields: [branchId], references: [id])
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id])
+  variantId        String?
+  variant          ProductVariant? @relation(fields: [variantId], references: [id])
+  quantity         Decimal        @default(0) @db.Decimal(15, 3)
+  reservedQty      Decimal        @default(0) @db.Decimal(15, 3) // reserved for pending orders
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([branchId, productId, variantId])
+  @@index([branchId])
+  @@index([productId])
+  @@map("inventory")
+}
+
+model StockMovement {
+  id          String            @id @default(uuid())
+  branchId    String
+  productId   String
+  variantId   String?
+  type        StockMovementType
+  quantity    Decimal           @db.Decimal(15, 3)
+  costPrice   Decimal?          @db.Decimal(15, 2)
+  note        String?
+  referenceId   String?         // orderId, purchaseOrderId, transferId
+  referenceType String?         // ORDER, PURCHASE_ORDER, TRANSFER, ADJUSTMENT
+  userId      String?
+  user        User?             @relation(fields: [userId], references: [id])
+  createdAt   DateTime          @default(now())
+
+  @@index([branchId])
+  @@index([productId])
+  @@index([type])
+  @@index([referenceId])
+  @@map("stock_movements")
+}
+
+model StockTransfer {
+  id             String    @id @default(uuid())
+  code           String    @unique
+  fromBranchId   String
+  fromBranch     Branch    @relation("TransferFrom", fields: [fromBranchId], references: [id])
+  toBranchId     String
+  toBranch       Branch    @relation("TransferTo", fields: [toBranchId], references: [id])
+  status         String    @default("PENDING")
+  note           String?
+  transferredAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  items  StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+model StockTransferItem {
+  id         String        @id @default(uuid())
+  transferId String
+  transfer   StockTransfer @relation(fields: [transferId], references: [id])
+  productId  String
+  variantId  String?
+  quantity   Decimal       @db.Decimal(15, 3)
+
+  @@map("stock_transfer_items")
+}
+
+// ============================================================
+// CUSTOMERS & CRM
+// ============================================================
+
+model Customer {
+  id          String       @id @default(uuid())
+  code        String       @unique
+  name        String
+  phone       String?      @unique
+  email       String?
+  gender      Gender?
+  birthday    DateTime?
+  address     String?
+  city        String?
+  district    String?
+  avatar      String?
+  tier        CustomerTier @default(NEW)
+  points      Int          @default(0)
+  totalSpent  Decimal      @default(0) @db.Decimal(15, 2)
+  totalOrders Int          @default(0)
+  notes       String?
+  tags        String[]     @default([])
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  orders           Order[]
+  pointTransactions PointTransaction[]
+
+  @@index([phone])
+  @@index([code])
+  @@index([tier])
+  @@map("customers")
+}
+
+model PointTransaction {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  points      Int      // positive = earn, negative = redeem
+  type        String   // EARN, REDEEM, EXPIRE, ADJUST, BONUS
+  referenceId String?  // orderId
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([customerId])
+  @@map("point_transactions")
+}
+
+// ============================================================
+// POS / ORDERS
+// ============================================================
+
+
+model Order {
+  id              String        @id @default(uuid())
+  code            String        @unique
+  branchId        String
+  branch          Branch        @relation(fields: [branchId], references: [id])
+  shiftId         String?
+  shift           Shift?        @relation(fields: [shiftId], references: [id])
+  customerId      String?
+  customer        Customer?     @relation(fields: [customerId], references: [id])
+  status          OrderStatus   @default(PENDING)
+  paymentStatus   PaymentStatus @default(PENDING)
+  subtotal        Decimal       @db.Decimal(15, 2)
+  discountAmount  Decimal       @default(0) @db.Decimal(15, 2)
+  taxAmount       Decimal       @default(0) @db.Decimal(15, 2)
+  shippingFee     Decimal       @default(0) @db.Decimal(15, 2)
+  total           Decimal       @db.Decimal(15, 2)
+  paidAmount      Decimal       @default(0) @db.Decimal(15, 2)
+  changeAmount    Decimal       @default(0) @db.Decimal(15, 2)
+  pointsEarned    Int           @default(0)
+  pointsRedeemed  Int           @default(0)
+  couponCode      String?
+  couponDiscount  Decimal       @default(0) @db.Decimal(15, 2)
+  note            String?
+  receiptUrl      String?
+  createdById     String?
+  createdBy       User?         @relation("OrderCreatedBy", fields: [createdById], references: [id])
+  updatedById     String?
+  updatedBy       User?         @relation("OrderUpdatedBy", fields: [updatedById], references: [id])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  items    OrderItem[]
+  payments OrderPayment[]
+  returns  OrderReturn[]
+
+  @@index([branchId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([code])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String         @id @default(uuid())
+  orderId    String
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product        @relation(fields: [productId], references: [id])
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id])
+  name       String         // snapshot of product name
+  sku        String?
+  quantity   Decimal        @db.Decimal(15, 3)
+  costPrice  Decimal        @db.Decimal(15, 2)
+  salePrice  Decimal        @db.Decimal(15, 2)
+  discount   Decimal        @default(0) @db.Decimal(15, 2)
+  total      Decimal        @db.Decimal(15, 2)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderPayment {
+  id              String                @id @default(uuid())
+  orderId         String
+  order           Order                 @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method          PaymentMethod
+  amount          Decimal               @db.Decimal(15, 2)
+  transactionId   String?               // VNPay/MoMo transaction ID
+  transactionRef  String?               // Mã tham chiếu nội dung chuyển khoản
+  status          PaymentStatus         @default(PENDING)
+  paidAt          DateTime?
+  metadata        Json?                 // gateway response raw data
+  // Bank transfer manual
+  bankAccountId   String?
+  bankAccount     BankAccount?          @relation(fields: [bankAccountId], references: [id])
+  confirmedAt     DateTime?             // Nhân viên xác nhận đã nhận tiền
+  confirmedById   String?               // userId xác nhận
+  // Gateway
+  gatewayStatus   PaymentGatewayStatus? // PENDING/SUCCESS/FAILED
+  gatewayResponse Json?                 // Raw webhook từ VNPay/MoMo
+  createdAt       DateTime              @default(now())
+
+  @@index([orderId])
+  @@index([bankAccountId])
+  @@map("order_payments")
+}
+
+// ============================================================
+// BANK ACCOUNTS (Tài khoản ngân hàng cho QR thủ công)
+// ============================================================
+
+model BankAccount {
+  id            String   @id @default(uuid())
+  branchId      String
+  branch        Branch   @relation(fields: [branchId], references: [id])
+  bankName      String   // "MB Bank", "Vietcombank"
+  bankCode      String   // Mã ngân hàng chuẩn Napas: "MB", "VCB"...
+  accountNumber String
+  accountName   String
+  qrImageUrl    String?  // URL ảnh QR tĩnh do chủ shop upload
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  payments OrderPayment[]
+
+  @@index([branchId])
+  @@map("bank_accounts")
+}
+
+model OrderReturn {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  reason    String?
+  refundAmount Decimal @db.Decimal(15, 2)
+  note      String?
+  createdAt DateTime @default(now())
+
+  items  OrderReturnItem[]
+
+  @@map("order_returns")
+}
+
+model OrderReturnItem {
+  id        String      @id @default(uuid())
+  returnId  String
+  return    OrderReturn @relation(fields: [returnId], references: [id])
+  productId String
+  variantId String?
+  quantity  Decimal     @db.Decimal(15, 3)
+  price     Decimal     @db.Decimal(15, 2)
+
+  @@map("order_return_items")
+}
+
+// ============================================================
+// PURCHASING
+// ============================================================
+
+model Supplier {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  taxCode     String?
+  bankAccount String?
+  bankName    String?
+  debtBalance Decimal   @default(0) @db.Decimal(15, 2)
+  notes       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  purchaseOrders PurchaseOrder[]
+
+  @@index([code])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id          String              @id @default(uuid())
+  code        String              @unique
+  branchId    String
+  branch      Branch              @relation(fields: [branchId], references: [id])
+  supplierId  String
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  status      PurchaseOrderStatus @default(DRAFT)
+  subtotal    Decimal             @db.Decimal(15, 2)
+  taxAmount   Decimal             @default(0) @db.Decimal(15, 2)
+  total       Decimal             @db.Decimal(15, 2)
+  paidAmount  Decimal             @default(0) @db.Decimal(15, 2)
+  note        String?
+  expectedAt  DateTime?
+  receivedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  items  PurchaseOrderItem[]
+
+  @@index([branchId])
+  @@index([supplierId])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id])
+  variantId       String?
+  quantity        Decimal       @db.Decimal(15, 3)
+  receivedQty     Decimal       @default(0) @db.Decimal(15, 3)
+  costPrice       Decimal       @db.Decimal(15, 2)
+  total           Decimal       @db.Decimal(15, 2)
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_items")
+}
+
+// ============================================================
+// HR — NHÂN SỰ
+// ============================================================
+
+model Employee {
+  id           String         @id @default(uuid())
+  code         String         @unique
+  userId       String?        @unique
+  user         User?          @relation(fields: [userId], references: [id])
+  branchId     String?
+  branch       Branch?        @relation(fields: [branchId], references: [id])
+  firstName    String
+  lastName     String
+  phone        String?
+  email        String?
+  gender       Gender?
+  birthday     DateTime?
+  address      String?
+  avatar       String?
+  department   String?
+  position     String?
+  baseSalary   Decimal        @default(0) @db.Decimal(15, 2)
+  commissionRate Decimal      @default(0) @db.Decimal(5, 2)
+  startDate    DateTime?
+  endDate      DateTime?
+  status       EmployeeStatus @default(ACTIVE)
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+
+  attendances  Attendance[]
+  payrolls     Payroll[]
+
+  @@index([branchId])
+  @@index([status])
+  @@map("employees")
+}
+
+model Attendance {
+  id          String         @id @default(uuid())
+  employeeId  String
+  employee    Employee       @relation(fields: [employeeId], references: [id])
+  type        AttendanceType
+  checkedAt   DateTime       @default(now())
+  note        String?
+  method      String         @default("MANUAL") // MANUAL, QR, FACE
+
+  @@index([employeeId])
+  @@index([checkedAt])
+  @@map("attendances")
+}
+
+model Payroll {
+  id               String   @id @default(uuid())
+  employeeId       String
+  employee         Employee @relation(fields: [employeeId], references: [id])
+  periodStart      DateTime
+  periodEnd        DateTime
+  workingDays      Int      @default(0)
+  baseSalary       Decimal  @db.Decimal(15, 2)
+  commissionAmount Decimal  @default(0) @db.Decimal(15, 2)
+  bonuses          Decimal  @default(0) @db.Decimal(15, 2)
+  deductions       Decimal  @default(0) @db.Decimal(15, 2)
+  netSalary        Decimal  @db.Decimal(15, 2)
+  paidAt           DateTime?
+  note             String?
+  createdAt        DateTime @default(now())
+
+  @@index([employeeId])
+  @@map("payrolls")
+}
+
+// ============================================================
+// FINANCE / KẾ TOÁN
+// ============================================================
+
+model ExpenseCategory {
+  id       String    @id @default(uuid())
+  name     String
+  nameEn   String?
+  icon     String?
+  isActive Boolean   @default(true)
+
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  branchId    String?
+  branch      Branch?         @relation(fields: [branchId], references: [id])
+  categoryId  String?
+  category    ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  type        TransactionType
+  amount      Decimal         @db.Decimal(15, 2)
+  description String?
+  receiptUrl  String?
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+
+  @@index([branchId])
+  @@index([type])
+  @@index([date])
+  @@map("expenses")
+}
+
+// ============================================================
+// PROMOTIONS / COUPONS
+// ============================================================
+
+model Promotion {
+  id              String        @id @default(uuid())
+  code            String?       @unique
+  name            String
+  description     String?
+  type            PromotionType
+  value           Decimal       @db.Decimal(15, 2) // % or fixed amount
+  minOrderAmount  Decimal?      @db.Decimal(15, 2)
+  maxDiscount     Decimal?      @db.Decimal(15, 2)
+  usageLimit      Int?
+  usageCount      Int           @default(0)
+  isActive        Boolean       @default(true)
+  startAt         DateTime?
+  endAt           DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([code])
+  @@index([isActive])
+  @@map("promotions")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String   // CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+  entity      String   // User, Product, Order, etc.
+  entityId    String?
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([entity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// SYSTEM SETTINGS
+// ============================================================
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  group     String?
+  label     String?
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ============================================================
+// SHIFTS
+// ============================================================
+
+model Shift {
+  id           String    @id @default(uuid())
+  branchId     String
+  branch       Branch    @relation(fields: [branchId], references: [id])
+  status       String    @default("OPEN") // OPEN | CLOSED
+  openedAt     DateTime  @default(now())
+  closedAt     DateTime?
+  openingCash  Decimal   @default(0) @db.Decimal(15, 2)
+  closingCash  Decimal?  @db.Decimal(15, 2)
+  totalSales   Decimal   @default(0) @db.Decimal(15, 2)
+  totalOrders  Int       @default(0)
+  cashSales    Decimal   @default(0) @db.Decimal(15, 2)
+  transferSales Decimal  @default(0) @db.Decimal(15, 2)
+  note         String?
+  openedById   String
+  openedBy     User      @relation("ShiftOpened", fields: [openedById], references: [id])
+  closedById   String?
+  closedBy     User?     @relation("ShiftClosed", fields: [closedById], references: [id])
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  orders       Order[]
+
+  @@index([branchId])
+  @@index([status])
+  @@map("shifts")
+}
+
