@@ -24,13 +24,31 @@
 
 <div align="center">
 
-| Dashboard | POS Bán Hàng | Báo Cáo |
-|-----------|-------------|---------|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![POS](docs/screenshots/pos.png) | ![Reports](docs/screenshots/reports.png) |
+### 🌙 Dark Mode
 
-| Tài Chính | Mail Center | Cài Đặt |
-|-----------|------------|---------|
-| ![Finance](docs/screenshots/finance.png) | ![Mail](docs/screenshots/mail.png) | ![Settings](docs/screenshots/settings.png) |
+| Dashboard — Tổng quan | POS — Bán hàng tại quầy |
+|---|---|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![POS](docs/screenshots/pos.png) |
+
+| 📋 Đơn Hàng | 📦 Sản Phẩm |
+|---|---|
+| ![Orders](docs/screenshots/orders.png) | ![Products](docs/screenshots/products.png) |
+
+| 🏪 Kho Hàng | 👥 Khách Hàng |
+|---|---|
+| ![Inventory](docs/screenshots/inventory.png) | ![Customers](docs/screenshots/customers.png) |
+
+| 🚚 Nhà Cung Cấp | 📊 Báo Cáo Doanh Thu |
+|---|---|
+| ![Suppliers](docs/screenshots/suppliers.png) | ![Reports](docs/screenshots/reports.png) |
+
+| 💰 Tài Chính | 📧 Mail Center |
+|---|---|
+| ![Finance](docs/screenshots/finance.png) | ![Mail](docs/screenshots/mail.png) |
+
+| ⚙️ Cài Đặt Hệ Thống | ☀️ Light Mode |
+|---|---|
+| ![Settings](docs/screenshots/settings.png) | ![Light Mode](docs/screenshots/light_mode.png) |
 
 </div>
 
